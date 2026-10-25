@@ -43,6 +43,7 @@ Vagrant.configure("2") do |config|
       mysql -e "GRANT ALL PRIVILEGES ON gerenciador_processos.* TO 'api_user'@'localhost';"
       mysql -e "FLUSH PRIVILEGES;"
 
+      mkdir -p /home/vagrant/app/logs #cria a pasta de logs
       chmod +x /home/vagrant/app/motor.sh #para garantir que o script seja executável
       
       echo "Ambiente montado!"
