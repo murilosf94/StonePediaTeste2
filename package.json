@@ -1,0 +1,13 @@
+{
+  "name": "gerenciador-ambientes-cloud",
+  "version": "1.0.0",
+  "description": "Projeto 2 - Computacao em Nuvem PUC-Campinas",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "mysql2": "^3.11.0"
+  }
+}
