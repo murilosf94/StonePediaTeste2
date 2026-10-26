@@ -1,28 +1,23 @@
 Vagrant.configure("2") do |config|
   is_arm = RUBY_PLATFORM.include?("arm64") || RUBY_PLATFORM.include?("aarch64")
-  
-  #cria a VM com o nome "servidor_projetocloud"
+
   config.vm.define "servidor_projetocloud" do |node|
     node.vm.box = "bento/ubuntu-22.04" if is_arm
     node.vm.box = "ubuntu/focal64" if !is_arm
     node.vm.box_architecture = "arm64" if is_arm
     node.vm.hostname = "nuvem-puc"
-    
-    #mapeia a porta 8080 do seu PC para o Nginx (porta 80) e 3000 para a API
+
     node.vm.network "forwarded_port", guest: 80, host: 8080
     node.vm.network "forwarded_port", guest: 3000, host: 3000
-    
+
     node.vm.provider "virtualbox" do |vb|
       vb.gui = !is_arm
-      #configura a memória e CPU da VM
-      vb.memory = "4096" 
-      vb.cpus = 1        
+      vb.memory = "4096"
+      vb.cpus = 1
       vb.name = "vm_projeto2"
     end
-    
-    #provisionamento: instala TUDO de uma vez
+
     node.vm.provision "shell", inline: <<-SHELL
-      #para atualizar os pacotes e instalar o Nginx, MySQL, Node.js, Git e Cgroup Tools
       echo "Atualizando pacotes..."
       export DEBIAN_FRONTEND=noninteractive
       apt-get update
@@ -32,21 +27,64 @@ Vagrant.configure("2") do |config|
       curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
       apt-get install -y nodejs
 
-      echo "Baixando o código do Github..."
+      echo "Clonando o repositorio do GitHub..."
       rm -rf /home/vagrant/app
       git clone https://github.com/murilosf94/StonePediaTeste2.git /home/vagrant/app
+
+      mkdir -p /home/vagrant/app/logs
+      mkdir -p /home/vagrant/app/scripts
+      sed -i 's/\r$//' /home/vagrant/app/motor.sh
+      chmod +x /home/vagrant/app/motor.sh
       chown -R vagrant:vagrant /home/vagrant/app
 
-      echo "Configurando Banco de Dados..."
+      echo "Configurando Banco de Dados MySQL..."
       mysql -e "CREATE DATABASE IF NOT EXISTS gerenciador_processos;"
       mysql -e "CREATE USER IF NOT EXISTS 'api_user'@'localhost' IDENTIFIED BY 'senha_super_segura';"
       mysql -e "GRANT ALL PRIVILEGES ON gerenciador_processos.* TO 'api_user'@'localhost';"
       mysql -e "FLUSH PRIVILEGES;"
 
-      mkdir -p /home/vagrant/app/logs #cria a pasta de logs
-      chmod +x /home/vagrant/app/motor.sh #para garantir que o script seja executável
-      
-      echo "Ambiente montado!"
+      echo "Instalando pacotes do Node.js..."
+      cd /home/vagrant/app
+      sudo -u vagrant npm install
+
+      echo "Configurando Proxy Reverso no Nginx..."
+      cat << 'EOF' > /etc/nginx/sites-available/default
+server {
+    listen 80 default_server;
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+EOF
+      systemctl restart nginx
+
+      echo "Configurando servico Systemd para a API Node.js..."
+      cat << 'EOF' > /etc/systemd/system/gerenciador.service
+[Unit]
+Description=API Gerenciador de Ambientes Cloud
+After=network.target mysql.service
+
+[Service]
+Type=simple
+User=vagrant
+WorkingDirectory=/home/vagrant/app
+ExecStart=/usr/bin/node /home/vagrant/app/index.js
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+      systemctl daemon-reload
+      systemctl enable gerenciador
+      systemctl restart gerenciador
+
+      echo "Provisionamento completo! API rodando na porta 3000 e Nginx na porta 80."
     SHELL
   end
 end
