@@ -273,11 +273,22 @@ app.delete('/ambientes/:id', (req, res) => {
 
     const amb = results[0];
 
-    // mata toda a arvore de processos associada ao PID do ambiente e remove o cgroup
+    // Mata todos os processos dentro do Cgroup (v1 ou v2), mata recursivamente a arvore do PID e remove o Cgroup
     const cmdKill = `
-      sudo pkill -9 -P ${amb.pid} 2>/dev/null || true;
-      sudo kill -9 ${amb.pid} 2>/dev/null || true;
-      sudo cgdelete -r memory,cpu,blkio:/${amb.nome_ambiente} 2>/dev/null || true;
+      for f in /sys/fs/cgroup/memory/${amb.nome_ambiente}/cgroup.procs /sys/fs/cgroup/cpu/${amb.nome_ambiente}/cgroup.procs /sys/fs/cgroup/${amb.nome_ambiente}/cgroup.procs; do
+        if [ -f "$f" ]; then
+          for p in $(cat "$f"); do
+            sudo kill -9 "$p" 2>/dev/null || true
+          done
+        fi
+      done
+      for child in $(pgrep -P ${amb.pid} 2>/dev/null); do
+        sudo pkill -9 -P "$child" 2>/dev/null || true
+        sudo kill -9 "$child" 2>/dev/null || true
+      done
+      sudo pkill -9 -P ${amb.pid} 2>/dev/null || true
+      sudo kill -9 ${amb.pid} 2>/dev/null || true
+      sudo cgdelete -r memory,cpu,blkio:/${amb.nome_ambiente} 2>/dev/null || true
     `;
 
     exec(cmdKill, () => {
