@@ -15,11 +15,11 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(APP_DIR, 'public')));
 
-//garante que as pastas existam
+// garante que as pastas existam
 if (!fs.existsSync(SCRIPTS_DIR)) fs.mkdirSync(SCRIPTS_DIR, { recursive: true });
 if (!fs.existsSync(LOGS_DIR)) fs.mkdirSync(LOGS_DIR, { recursive: true });
 
-//conexao com o MySQL
+// conexao com o MySQL
 const db = mysql.createPool({
   host: 'localhost',
   user: 'api_user',
@@ -29,7 +29,7 @@ const db = mysql.createPool({
   connectionLimit: 10
 });
 
-//inicializacao das Tabelas do Banco de Dados
+// inicializacao das Tabelas do Banco de Dados
 const inicializarBanco = () => {
   const sqlScripts = `
     CREATE TABLE IF NOT EXISTS scripts (
@@ -68,7 +68,7 @@ const inicializarBanco = () => {
 
 inicializarBanco();
 
-//funcao auxiliar para verificar no SO se o processo ainda esta rodando e atualizar o status
+// funcao auxiliar para verificar no SO se o processo ainda esta rodando e atualizar o status
 const verificarStatusProcesso = (ambiente) => {
   return new Promise((resolve) => {
     if (ambiente.status === 'Terminado' || ambiente.status === 'Erro' || ambiente.status === 'Terminado (Forçado)') {
@@ -77,7 +77,7 @@ const verificarStatusProcesso = (ambiente) => {
 
     const exitFile = path.join(LOGS_DIR, `exit_${ambiente.nome_ambiente}.txt`);
 
-    //se o arquivo de exit existe, o comando ja finalizou
+    // se o arquivo de exit existe, o comando ja finalizou
     if (fs.existsSync(exitFile)) {
       const exitCode = parseInt(fs.readFileSync(exitFile, 'utf8').trim(), 10);
       const novoStatus = (exitCode === 0) ? 'Terminado' : 'Erro';
@@ -85,7 +85,7 @@ const verificarStatusProcesso = (ambiente) => {
       return resolve(novoStatus);
     }
 
-    //verifica se o PID ainda existe na tabela de processos do Linux (ignorando processos zumbis)
+    // verifica se o PID ainda existe na tabela de processos do Linux (ignorando processos zumbis)
     exec(`ps -p ${ambiente.pid} -o stat=`, (err, stdout) => {
       const stat = stdout ? stdout.trim() : '';
       if (err || !stat || stat.startsWith('Z')) {
@@ -106,9 +106,9 @@ const verificarStatusProcesso = (ambiente) => {
   });
 };
 
-//ROTAS DE SCRIPTS (Armazenamento para Reuso)
+// ROTAS DE SCRIPTS (Armazenamento para Reuso)
 
-//cadastrar um novo script via formulario/JSON
+// cadastrar um novo script via formulario/JSON
 app.post('/scripts', (req, res) => {
   const { nome, conteudo } = req.body;
   if (!nome || !conteudo) {
@@ -118,7 +118,7 @@ app.post('/scripts', (req, res) => {
   const nomeSeguro = nome.replace(/[^a-zA-Z0-9_-]/g, '_') + '_' + Date.now() + '.sh';
   const caminhoArquivo = path.join(SCRIPTS_DIR, nomeSeguro);
 
-  //converte quebras de linha do Windows (\r\n) para Linux (\n) e salva o arquivo
+  // converte quebras de linha do Windows (\r\n) para Linux (\n) e salva o arquivo
   const conteudoLimpo = conteudo.replace(/\r\n/g, '\n');
 
   try {
@@ -142,7 +142,7 @@ app.post('/scripts', (req, res) => {
   );
 });
 
-//listar todos os scripts salvos para reuso
+// listar todos os scripts salvos para reuso
 app.get('/scripts', (req, res) => {
   db.query('SELECT * FROM scripts ORDER BY id DESC', (err, results) => {
     if (err) return res.status(500).json({ erro: 'Erro ao buscar scripts.' });
@@ -150,10 +150,9 @@ app.get('/scripts', (req, res) => {
   });
 });
 
-//ROTAS DE AMBIENTES (Namespaces / Cgroups / Execucao)
+// ROTAS DE AMBIENTES (Namespaces / Cgroups / Execucao)
 
-
-// Criar e iniciar um novo ambiente de execucao
+// criar e iniciar um novo ambiente de execucao
 app.post('/ambientes', (req, res) => {
   const { nome_ambiente, script_id, comando_direto, limite_cpu, limite_ram, limite_io } = req.body;
 
@@ -174,7 +173,7 @@ app.post('/ambientes', (req, res) => {
         return res.status(500).json({ erro: 'Falha ao executar motor.sh', detalhe: stderr || err.message });
       }
 
-      //extrai o PID retornado pelo motor.sh (formato PID:1234)
+      // extrai o PID retornado pelo motor.sh (formato PID:1234)
       const match = stdout.match(/PID:(\d+)/);
       const pid = match ? parseInt(match[1], 10) : 0;
       const arquivoLog = path.join(LOGS_DIR, `saida_${nomeUnico}.txt`);
@@ -199,13 +198,20 @@ app.post('/ambientes', (req, res) => {
     });
   };
 
-  //verifica se o usuario escolheu um script salvo pelo ID ou mandou um comando direto
+  // verifica se o usuario escolheu um script salvo pelo ID ou mandou um comando direto
   if (script_id) {
-    db.query('SELECT caminho_arquivo FROM scripts WHERE id = ?', [script_id], (err, results) => {
+    db.query('SELECT caminho_arquivo, conteudo FROM scripts WHERE id = ?', [script_id], (err, results) => {
       if (err || results.length === 0) {
         return res.status(404).json({ erro: 'Script salvo nao encontrado com o script_id informado.' });
       }
-      dispararMotor(results[0].caminho_arquivo);
+      const { caminho_arquivo, conteudo } = results[0];
+
+      // se o arquivo fisico tiver sido apagado por um vagrant provision, recria-o a partir do MySQL
+      if (!fs.existsSync(caminho_arquivo)) {
+        fs.writeFileSync(caminho_arquivo, conteudo, { mode: 0o755 });
+      }
+
+      dispararMotor(caminho_arquivo);
     });
   } else if (comando_direto) {
     dispararMotor(comando_direto);
@@ -214,7 +220,7 @@ app.post('/ambientes', (req, res) => {
   }
 });
 
-//listar todos os ambientes e atualizar o status em tempo real
+// listar todos os ambientes e atualizar o status em tempo real
 app.get('/ambientes', (req, res) => {
   db.query('SELECT * FROM ambientes ORDER BY id DESC', async (err, results) => {
     if (err) return res.status(500).json({ erro: 'Erro ao listar ambientes.' });
@@ -227,7 +233,7 @@ app.get('/ambientes', (req, res) => {
   });
 });
 
-//visualizar o output (arquivo de log) de um ambiente especifico
+// visualizar o output (arquivo de log) de um ambiente especifico
 app.get('/ambientes/:id/output', (req, res) => {
   const { id } = req.params;
   db.query('SELECT * FROM ambientes WHERE id = ?', [id], async (err, results) => {
@@ -255,7 +261,7 @@ app.get('/ambientes/:id/output', (req, res) => {
   });
 });
 
-//terminar/remover a execucao de um ambiente
+// terminar/remover a execucao de um ambiente
 app.delete('/ambientes/:id', (req, res) => {
   const { id } = req.params;
   const removerDoBanco = req.query.remover === 'true';
@@ -267,7 +273,7 @@ app.delete('/ambientes/:id', (req, res) => {
 
     const amb = results[0];
 
-    //mata toda a arvore de processos associada ao PID do ambiente e remove o cgroup
+    // mata toda a arvore de processos associada ao PID do ambiente e remove o cgroup
     const cmdKill = `
       sudo pkill -9 -P ${amb.pid} 2>/dev/null || true;
       sudo kill -9 ${amb.pid} 2>/dev/null || true;
