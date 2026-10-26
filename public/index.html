@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gerenciador de Ambientes Cloud - PUC-Campinas</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f0f2f5;
+      color: #1e293b;
+      padding: 24px;
+    }
+    header {
+      max-width: 1250px;
+      margin: 0 auto 24px auto;
+      background: #0f172a;
+      color: #fff;
+      padding: 20px 28px;
+      border-radius: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    header h1 { font-size: 1.4rem; font-weight: 600; }
+    header span { font-size: 0.85rem; color: #94a3b8; }
+    .grid-top {
+      max-width: 1250px;
+      margin: 0 auto 24px auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 22px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      max-width: 1250px;
+      margin: 0 auto 24px auto;
+    }
+    .grid-top .card { margin: 0; }
+    h2 {
+      font-size: 1.1rem;
+      margin-bottom: 16px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #e2e8f0;
+      color: #0f172a;
+    }
+    label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: #334155;
+    }
+    input, select, textarea {
+      width: 100%;
+      padding: 10px 12px;
+      margin-bottom: 14px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-family: inherit;
+    }
+    textarea {
+      font-family: 'Consolas', 'Courier New', monospace;
+      resize: vertical;
+      min-height: 110px;
+      background: #f8fafc;
+    }
+    .row-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+    }
+    button {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    button:hover { opacity: 0.9; }
+    .btn-primary { background: #2563eb; color: #fff; width: 100%; }
+    .btn-success { background: #16a34a; color: #fff; width: 100%; }
+    .btn-sm { padding: 6px 10px; font-size: 0.8rem; margin-right: 4px; }
+    .btn-info { background: #0284c7; color: #fff; }
+    .btn-warning { background: #ea580c; color: #fff; }
+    .btn-danger { background: #dc2626; color: #fff; }
+    .btn-preset {
+      background: #e2e8f0;
+      color: #334155;
+      font-size: 0.75rem;
+      padding: 5px 10px;
+      margin-right: 6px;
+      margin-bottom: 10px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+    th, td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    th {
+      background: #f8fafc;
+      color: #475569;
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 0.75rem;
+    }
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+    .status-running { background: #dcfce7; color: #15803d; }
+    .status-done { background: #dbeafe; color: #1d4ed8; }
+    .status-error { background: #fee2e2; color: #b91c1c; }
+    .status-killed { background: #fef3c7; color: #b45309; }
+    .console-box {
+      background: #0f172a;
+      color: #38bdf8;
+      font-family: 'Consolas', 'Courier New', monospace;
+      padding: 16px;
+      border-radius: 8px;
+      min-height: 180px;
+      max-height: 360px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      font-size: 0.88rem;
+      line-height: 1.45;
+    }
+    .header-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div>
+      <h1>Gerenciador de Execução Isolada (Namespaces & Cgroups)</h1>
+      <span>Projeto 2 - Computação em Nuvem | PUC-Campinas</span>
+    </div>
+    <div>
+      <span id="indicadorSync">Sincronizando...</span>
+    </div>
+  </header>
+
+  <div class="grid-top">
+    <!-- CARD 1: CADASTRAR SCRIPT PARA REUSO -->
+    <div class="card">
+      <h2>1. Cadastrar Script (Armazenamento para Reuso)</h2>
+      <div>
+        <span style="font-size:0.78rem; color:#64748b; display:block; margin-bottom:6px;">Preencher com exemplo rápido:</span>
+        <button type="button" class="btn-preset" onclick="preencherExemplo('servico')">Serviço Infinito</button>
+        <button type="button" class="btn-preset" onclick="preencherExemplo('rapido')">Tarefa de 5 Segundos</button>
+        <button type="button" class="btn-preset" onclick="preencherExemplo('erro')">Script com Erro</button>
+      </div>
+      <form onsubmit="salvarScript(event)">
+        <label for="nomeScript">Nome do Script</label>
+        <input type="text" id="nomeScript" placeholder="Ex: servico_monitoramento" required>
+
+        <label for="conteudoScript">Código / Comandos (Bash)</label>
+        <textarea id="conteudoScript" placeholder="#!/bin/bash&#10;echo 'Iniciando...'&#10;sleep 5" required></textarea>
+
+        <button type="submit" class="btn-primary">Salvar Script para Reuso</button>
+      </form>
+    </div>
+
+    <!-- CARD 2: CRIAR NOVO AMBIENTE -->
+    <div class="card">
+      <h2>2. Criar Novo Ambiente (Namespace + Cgroups)</h2>
+      <form onsubmit="criarAmbiente(event)">
+        <label for="nomeAmbiente">Identificador do Ambiente</label>
+        <input type="text" id="nomeAmbiente" placeholder="Ex: container_app" required>
+
+        <label for="selectScript">Selecionar Script Armazenado</label>
+        <select id="selectScript">
+          <option value="">-- Ou digite um comando direto abaixo --</option>
+        </select>
+
+        <label for="comandoDireto">Comando Direto (Opcional se escolheu um script acima)</label>
+        <input type="text" id="comandoDireto" placeholder="Ex: top -b -d 2">
+
+        <div class="row-3">
+          <div>
+            <label for="limiteCpu">CPU (%)</label>
+            <input type="number" id="limiteCpu" value="30" min="1" max="100" required>
+          </div>
+          <div>
+            <label for="limiteRam">Memória (MB)</label>
+            <input type="number" id="limiteRam" value="50" min="5" max="2048" required>
+          </div>
+          <div>
+            <label for="limiteIo">Limite IO (MB/s)</label>
+            <input type="number" id="limiteIo" value="10" min="1" max="500" required>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-success">Iniciar Ambiente Isolado</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- CARD 3: LISTAGEM E STATUS DOS AMBIENTES -->
+  <div class="card">
+    <div class="header-actions">
+      <h2 style="border:none; margin:0; padding:0;">3. Ambientes Criados (Gerenciamento Simultâneo)</h2>
+      <button class="btn-sm btn-info" onclick="carregarAmbientes()">Atualizar Agora</button>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Ambiente (Cgroup/Namespace)</th>
+          <th>PID</th>
+          <th>Recursos (CPU / RAM / IO)</th>
+          <th>Status</th>
+          <th>Ações</th>
+        </tr>
+      </thead>
+      <tbody id="tabelaAmbientes">
+        <tr><td colspan="6" style="text-align:center;">Carregando ambientes...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- CARD 4: VISUALIZADOR DE OUTPUT -->
+  <div class="card">
+    <div class="header-actions">
+      <h2 style="border:none; margin:0; padding:0;" id="tituloOutput">4. Output da Execução (Selecione um ambiente acima)</h2>
+      <button class="btn-sm btn-info" id="btnAtualizarOutput" onclick="atualizarOutputAtual()" style="display:none;">Recarregar Output</button>
+    </div>
+    <div class="console-box" id="caixaOutput">Clique em "Ver Output" em qualquer ambiente da tabela para visualizar o arquivo de log gerado.</div>
+  </div>
+
+  <script>
+    let ambienteSelecionadoId = null;
+
+    function preencherExemplo(tipo) {
+      const nome = document.getElementById('nomeScript');
+      const codigo = document.getElementById('conteudoScript');
+      if (tipo === 'servico') {
+        nome.value = 'servico_continuo';
+        codigo.value = '#!/bin/bash\ni=1\nwhile true; do\n  echo "[$(date +%H:%M:%S)] Servico ativo no namespace (PID interno: $$) - Iteracao $i"\n  sleep 2\n  i=$((i+1))\ndone';
+      } else if (tipo === 'rapido') {
+        nome.value = 'processamento_lote';
+        codigo.value = '#!/bin/bash\necho "Iniciando processamento no namespace..."\nfor i in 1 2 3 4 5; do\n  echo "Processando etapa $i de 5..."\n  sleep 1\ndone\necho "Concluido com sucesso!"\nexit 0';
+      } else if (tipo === 'erro') {
+        nome.value = 'script_falha';
+        codigo.value = '#!/bin/bash\necho "Iniciando operacao critica..."\nsleep 2\necho "ERRO FATAL: Falha simulada durante a execucao!" >&2\nexit 1';
+      }
+    }
+
+    async function carregarScripts() {
+      const res = await fetch('/scripts');
+      const scripts = await res.json();
+      const select = document.getElementById('selectScript');
+      const valorAtual = select.value;
+      select.innerHTML = '<option value="">-- Ou digite um comando direto abaixo --</option>';
+      scripts.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.id;
+        opt.textContent = `#${s.id} - ${s.nome}`;
+        select.appendChild(opt);
+      });
+      select.value = valorAtual;
+    }
+
+    async function salvarScript(e) {
+      e.preventDefault();
+      const nome = document.getElementById('nomeScript').value;
+      const conteudo = document.getElementById('conteudoScript').value;
+
+      const res = await fetch('/scripts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nome, conteudo })
+      });
+
+      if (res.ok) {
+        document.getElementById('nomeScript').value = '';
+        document.getElementById('conteudoScript').value = '';
+        await carregarScripts();
+        alert('Script armazenado com sucesso para reuso!');
+      } else {
+        const erro = await res.json();
+        alert('Erro: ' + (erro.erro || 'Falha ao salvar script'));
+      }
+    }
+
+    async function criarAmbiente(e) {
+      e.preventDefault();
+      const nome_ambiente = document.getElementById('nomeAmbiente').value;
+      const script_id = document.getElementById('selectScript').value;
+      const comando_direto = document.getElementById('comandoDireto').value;
+
+      if (!script_id && !comando_direto.trim()) {
+        alert('Selecione um script salvo ou digite um comando direto!');
+        return;
+      }
+
+      const limite_cpu = parseInt(document.getElementById('limiteCpu').value, 10);
+      const limite_ram = parseInt(document.getElementById('limiteRam').value, 10) * 1024 * 1024;
+      const limite_io = parseInt(document.getElementById('limiteIo').value, 10) * 1024 * 1024;
+
+      const res = await fetch('/ambientes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nome_ambiente,
+          script_id: script_id ? parseInt(script_id, 10) : null,
+          comando_direto: comando_direto.trim() || null,
+          limite_cpu,
+          limite_ram,
+          limite_io
+        })
+      });
+
+      const dados = await res.json();
+      if (res.ok) {
+        document.getElementById('nomeAmbiente').value = '';
+        document.getElementById('comandoDireto').value = '';
+        await carregarAmbientes();
+        verOutput(dados.id);
+      } else {
+        alert('Erro ao criar ambiente: ' + (dados.erro || 'Falha desconhecida'));
+      }
+    }
+
+    function formatarBadgeStatus(status) {
+      if (status === 'Em execução') return `<span class="badge status-running">Em execução</span>`;
+      if (status === 'Terminado') return `<span class="badge status-done">Terminado</span>`;
+      if (status === 'Erro') return `<span class="badge status-error">Erro</span>`;
+      return `<span class="badge status-killed">${status}</span>`;
+    }
+
+    async function carregarAmbientes() {
+      const res = await fetch('/ambientes');
+      const ambientes = await res.json();
+      const tbody = document.getElementById('tabelaAmbientes');
+
+      if (ambientes.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#64748b;">Nenhum ambiente criado ainda.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = '';
+      ambientes.forEach(amb => {
+        const ramMB = Math.round(amb.limite_ram / (1024 * 1024));
+        const ioMB = Math.round(amb.limite_io / (1024 * 1024));
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><strong>#${amb.id}</strong></td>
+          <td>${amb.nome_ambiente}</td>
+          <td><code>${amb.pid}</code></td>
+          <td>CPU: ${amb.limite_cpu}% | RAM: ${ramMB}MB | IO: ${ioMB}MB/s</td>
+          <td>${formatarBadgeStatus(amb.status)}</td>
+          <td>
+            <button class="btn-sm btn-info" onclick="verOutput(${amb.id})">Ver Output</button>
+            ${amb.status === 'Em execução' ? `<button class="btn-sm btn-warning" onclick="encerrarAmbiente(${amb.id}, false)">Parar</button>` : ''}
+            <button class="btn-sm btn-danger" onclick="encerrarAmbiente(${amb.id}, true)">Remover</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      document.getElementById('indicadorSync').textContent = 'Atualizado às ' + new Date().toLocaleTimeString();
+    }
+
+    async function verOutput(id) {
+      ambienteSelecionadoId = id;
+      document.getElementById('btnAtualizarOutput').style.display = 'inline-block';
+      await atualizarOutputAtual();
+    }
+
+    async function atualizarOutputAtual() {
+      if (!ambienteSelecionadoId) return;
+      const res = await fetch(`/ambientes/${ambienteSelecionadoId}/output`);
+      if (!res.ok) return;
+      const dados = await res.json();
+      document.getElementById('tituloOutput').textContent = `4. Output do Ambiente #${dados.id} (${dados.nome_ambiente}) - Status: ${dados.status}`;
+      const caixa = document.getElementById('caixaOutput');
+      caixa.textContent = dados.output || '(Sem conteúdo no arquivo de log até o momento)';
+      caixa.scrollTop = caixa.scrollHeight;
+    }
+
+    async function encerrarAmbiente(id, removerDoBanco) {
+      const acao = removerDoBanco ? 'remover permanentemente' : 'terminar a execução de';
+      if (!confirm(`Deseja realmente ${acao} este ambiente?`)) return;
+
+      await fetch(`/ambientes/${id}?remover=${removerDoBanco}`, { method: 'DELETE' });
+      if (removerDoBanco && ambienteSelecionadoId === id) {
+        ambienteSelecionadoId = null;
+        document.getElementById('tituloOutput').textContent = '4. Output da Execução (Selecione um ambiente acima)';
+        document.getElementById('caixaOutput').textContent = 'Ambiente removido.';
+        document.getElementById('btnAtualizarOutput').style.display = 'none';
+      }
+      await carregarAmbientes();
+      if (!removerDoBanco && ambienteSelecionadoId === id) {
+        await atualizarOutputAtual();
+      }
+    }
+
+    //inicializacao e auto-refresh a cada 3 segundos
+    carregarScripts();
+    carregarAmbientes();
+    setInterval(() => {
+      carregarAmbientes();
+      if (ambienteSelecionadoId) atualizarOutputAtual();
+    }, 3000);
+  </script>
+</body>
+</html>

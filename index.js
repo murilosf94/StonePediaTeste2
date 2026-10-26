@@ -7,12 +7,13 @@ const path = require('path');
 const app = express();
 const port = 3000;
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
 const APP_DIR = '/home/vagrant/app';
 const SCRIPTS_DIR = path.join(APP_DIR, 'scripts');
 const LOGS_DIR = path.join(APP_DIR, 'logs');
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static(path.join(APP_DIR, 'public')));
 
 //garante que as pastas existam
 if (!fs.existsSync(SCRIPTS_DIR)) fs.mkdirSync(SCRIPTS_DIR, { recursive: true });
