@@ -1,19 +1,21 @@
 #!/bin/bash
 # Uso: ./motor.sh <nome_ambiente> <limite_ram_bytes> <limite_cpu_pct> <limite_io_bps> <comando>
 
+#configura o ambiente de execução do script, incluindo limites de recursos e isolamento de namespace
 NOME_AMBIENTE=$1
 LIMITE_RAM=$2
 LIMITE_CPU=$3
 LIMITE_IO=$4
 SCRIPT_ALVO=$5
 
-LOG_DIR="/home/vagrant/app/logs"
+LOG_DIR="/home/vagrant/app/logs" #define onde ficam os logs e garante que a pasta exista
 mkdir -p "$LOG_DIR"
-LOG_FILE="$LOG_DIR/saida_${NOME_AMBIENTE}.txt"
-EXIT_FILE="$LOG_DIR/exit_${NOME_AMBIENTE}.txt"
+LOG_FILE="$LOG_DIR/saida_${NOME_AMBIENTE}.txt" #define o caminho do arquivo de texto que vai guardar tudo e imprimir na tela
+EXIT_FILE="$LOG_DIR/exit_${NOME_AMBIENTE}.txt" #arquivo que vai guardar o exit code do script alvo
 
-rm -f "$EXIT_FILE"
+rm -f "$EXIT_FILE" #remove o arquivo de exit code anterior, se existir
 
+#2v/dev/null || true ignore erros caso o cgroup já exista ou não seja possível criar, para evitar falhas no script
 # cria cgroups (v1 ou v2 dependendo do sistema, com fallback seguro)
 sudo cgcreate -g memory,cpu,blkio:/$NOME_AMBIENTE 2>/dev/null || true
 

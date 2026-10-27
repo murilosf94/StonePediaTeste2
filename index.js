@@ -1,21 +1,25 @@
+//importacoes (express, mysql2, child_process, fs, path)
 const express = require('express');
 const mysql = require('mysql2');
 const { exec } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
+//configuracoes iniciais do Express e definicao de portas
 const app = express();
 const port = 3000;
 
+//define 3 pastas dentro da VM: /home/vagrant/app/scripts (para scripts salvos), /home/vagrant/app/logs (para logs de execucao) e /home/vagrant/app/public (para arquivos estaticos)
 const APP_DIR = '/home/vagrant/app';
 const SCRIPTS_DIR = path.join(APP_DIR, 'scripts');
 const LOGS_DIR = path.join(APP_DIR, 'logs');
 
+//middlewares do Express para lidar com JSON, URL-encoded e arquivos estaticos
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(APP_DIR, 'public')));
 
-// garante que as pastas existam
+// garante que as pastas existam (recursive cria a pasta pai se nao existir)
 if (!fs.existsSync(SCRIPTS_DIR)) fs.mkdirSync(SCRIPTS_DIR, { recursive: true });
 if (!fs.existsSync(LOGS_DIR)) fs.mkdirSync(LOGS_DIR, { recursive: true });
 
@@ -56,6 +60,7 @@ const inicializarBanco = () => {
     );
   `;
 
+  //executa o sql e, quando termina, chama a funcao callback, se err existir, deu problema e é impresso no terminal
   db.query(sqlScripts, (err) => {
     if (err) console.error('Erro ao criar tabela scripts:', err);
   });
@@ -71,13 +76,15 @@ inicializarBanco();
 // funcao auxiliar para verificar no SO se o processo ainda esta rodando e atualizar o status
 const verificarStatusProcesso = (ambiente) => {
   return new Promise((resolve) => {
+    //se já está num estado final, não há o que verificar, apenas retorna o status
     if (ambiente.status === 'Terminado' || ambiente.status === 'Erro' || ambiente.status === 'Terminado (Forçado)') {
       return resolve(ambiente.status);
     }
 
+    //se existe o arquivo de exit, significa que o script já terminou, então lê o exit code e atualiza o status no banco
     const exitFile = path.join(LOGS_DIR, `exit_${ambiente.nome_ambiente}.txt`);
 
-    // se o arquivo de exit existe, o comando ja finalizou
+    // se o arquivo de exit existe, o comando ja finalizou, atualiza o status no banco e retorna o status
     if (fs.existsSync(exitFile)) {
       const exitCode = parseInt(fs.readFileSync(exitFile, 'utf8').trim(), 10);
       const novoStatus = (exitCode === 0) ? 'Terminado' : 'Erro';
@@ -115,6 +122,7 @@ app.post('/scripts', (req, res) => {
     return res.status(400).json({ erro: 'Os campos nome e conteudo sao obrigatorios.' });
   }
 
+  // cria um nome de arquivo seguro, substituindo caracteres especiais e adicionando timestamp
   const nomeSeguro = nome.replace(/[^a-zA-Z0-9_-]/g, '_') + '_' + Date.now() + '.sh';
   const caminhoArquivo = path.join(SCRIPTS_DIR, nomeSeguro);
 
@@ -127,6 +135,7 @@ app.post('/scripts', (req, res) => {
     return res.status(500).json({ erro: 'Falha ao salvar script no disco.', detalhe: err.message });
   }
 
+  //guarda o script no banco de dados para reuso futuro e gera um ID
   db.query(
     'INSERT INTO scripts (nome, conteudo, caminho_arquivo) VALUES (?, ?, ?)',
     [nome, conteudoLimpo, caminhoArquivo],
@@ -154,8 +163,10 @@ app.get('/scripts', (req, res) => {
 
 // criar e iniciar um novo ambiente de execucao
 app.post('/ambientes', (req, res) => {
+  //o usuario manda o nome, ou o ID de um script salvo, ou uma comando direto, mais os limites de CPU, RAM e IO
   const { nome_ambiente, script_id, comando_direto, limite_cpu, limite_ram, limite_io } = req.body;
 
+  //limpa o nome do ambiente para evitar caracteres especiais e cria um nome unico com timestamp
   const nomeBase = nome_ambiente ? nome_ambiente.replace(/[^a-zA-Z0-9_-]/g, '_') : 'amb';
   const nomeUnico = `${nomeBase}_${Date.now()}`;
 
@@ -163,6 +174,7 @@ app.post('/ambientes', (req, res) => {
   const ram = parseInt(limite_ram, 10) || 50000000;     // Default: ~50MB em bytes
   const io = parseInt(limite_io, 10) || 10485760;       // Default: 10MB/s em bytes
 
+  // funcao auxiliar para disparar o motor.sh com os parametros corretos
   const dispararMotor = (comandoParaExecutar) => {
     const caminhoMotor = path.join(APP_DIR, 'motor.sh');
     const cmdEscapado = comandoParaExecutar.replace(/"/g, '\\"');
@@ -305,6 +317,7 @@ app.delete('/ambientes/:id', (req, res) => {
   });
 });
 
+// inicializa o servidor Express na porta definida
 app.listen(port, '0.0.0.0', () => {
   console.log(`API do Gerenciador de Ambientes rodando na porta ${port}`);
 });
