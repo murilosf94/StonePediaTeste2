@@ -31,7 +31,7 @@ Vagrant.configure("2") do |config|
 
       echo "Clonando o repositorio do GitHub..."
       rm -rf /home/vagrant/app #em caso de provisionamento anterior, remove a pasta app para evitar conflitos
-      git clone https://github.com/murilosf94/StonePediaTeste2.git /home/vagrant/app #git clone do repositorio do projeto para a pasta /home/vagrant/app
+      git clone https://github.com/murilosf94/ProjetoCloud2.git /home/vagrant/app #git clone do repositorio do projeto para a pasta /home/vagrant/app
 
       mkdir -p /home/vagrant/app/logs #cria a pasta de logs caso nao exista
       mkdir -p /home/vagrant/app/scripts #cria a pasta de scripts caso nao exista
